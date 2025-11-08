@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Frontend App (React)</title>
+  
+  <!-- 1. Load Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 2. Load Google Font (ที่ใช้ใน app.jsx) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- 3. Load React & ReactDOM Libraries -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  
+  <!-- 4. Load Babel (เพื่อแปลง JSX ในเบราว์เซอร์) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    /* 5. Apply a fallback font */
+    body {
+      font-family: 'Noto Sans Thai Looped', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-[#F8F9FA]">
+  
+  <!-- 6. นี่คือจุดที่ React จะเข้ามา render แอป -->
+  <div id="root"></div>
+
+  <!-- 7. นี่คือโค้ด React (app.jsx) ทั้งหมดของคุณ -->
+  <script type="text/babel">
+    
+    // --- Setup: ดึง Hooks จาก Global React Object ---
+    // แทนที่ 'import React, { ... } from 'react';'
+    const { useState, useEffect, useMemo, useCallback, createContext, useContext } = React;
+    
+    // --- Start: โค้ดจาก app.jsx ---
+
+    // --- ค่าคงที่ (Constants) ---
+    const APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwH_v5bgYKDs-uAusVYbPaoahTemJPMCZuiS582EEa9rkiYR1UMsnAShjGl6y-w228/exec';
+    const ITEMS_PER_PAGE = 20;
+    const CATEGORIES = [
+        'กิจกรรมงานโรงเรียน', 
+        'รายงานการอบรม สัมมนา', 
+        'ผลงานครู', 
+        'ผลงานนักเรียน', 
+        'การร่วมงานชุมชน หรือหน่วยงานต่าง ๆ'
+    ];
+    const MAX_IMAGE_SIZE = 1200; // 1200px
+
+    // --- ไอคอน (Icons) ---
+    const IconHome = () => (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6-4a1 1 0 001-1v-1a1 1 0 10-2 0v1a1 1 0 001 1z" />
+      </svg>
+    );
+
+    const IconAdmin = () => (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    );
+
+    const IconLoading = () => (
+      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    );
+
+    const IconEdit = () => (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" />
+      </svg>
+    );
+
+    const IconDelete = () => (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    );
+
+    const IconLink = () => (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+      </svg>
+    );
+
+    // ADDED: ไอคอนดูรายละเอียด
+    const IconInfo = () => (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    // --- START EDIT: Add Icon ---
+    const IconExternalLink = () => (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    );
+    // --- END EDIT ---
+
+    // --- START EDIT: Add Icon ---
+    const IconChevronDown = () => (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
+    // --- END EDIT ---
+
+
+    // --- ไอคอนสำหรับ Modal ---
+    const IconCheckCircle = () => (
+      <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    const IconExclamationTriangle = () => (
+      <svg className="w-12 h-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    );
+
+    const IconXCircle = () => (
+      <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    );
+
+    const IconSpinner = () => ( // A different loading icon for the modal
+      <svg className="animate-spin h-10 w-10 text-[#A2E4B8]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    );
+
+
+    // --- Modal System ---
+    const ModalContext = React.createContext();
+
+    const ModalProvider = ({ children }) => {
+      const [modal, setModal] = useState(null); // null or { type, title, text, html, onConfirm, onCancel }
+
+      // --- START EDIT: Stabilize Context Value ---
+      // Wrap all functions in useCallback to stabilize their references
+      // ฟังก์ชันเหล่านี้จะไม่ถูกสร้างใหม่ทุกครั้งที่ re-render
+      const show = useCallback((config) => {
+        setModal({
+          type: config.icon || 'info', // 'success', 'error', 'warning', 'info'
+          title: config.title || '',
+          text: config.text || '',
+          html: config.html || '', // <-- ADDED: Support for HTML content
+          isDetails: config.isDetails || false, // <-- ADDED
+          dataItem: config.dataItem || null, // <-- ADDED: To pass the whole item
+          onConfirm: () => {
+            setModal(null);
+            if (config.onConfirm) config.onConfirm();
+          },
+          showConfirmButton: config.showConfirmButton !== false, // default true
+          confirmButtonText: config.confirmButtonText || 'ตกลง',
+          confirmButtonColor: config.confirmButtonColor || '#A2E4B8',
+          showCancelButton: false,
+          timer: config.timer,
+        });
+      }, []); // Dependency array is empty
+
+      const confirm = useCallback((config) => {
+        setModal({
+          type: config.icon || 'warning',
+          title: config.title,
+          text: config.text,
+          html: config.html || '', // <-- ADDED
+          isDetails: config.isDetails || false, // <-- ADDED
+          dataItem: config.dataItem || null, // <-- ADDED: To pass the whole item
+          onConfirm: () => {
+            setModal(null);
+            if (config.onConfirm) config.onConfirm();
+          },
+          showConfirmButton: true,
+          confirmButtonText: config.confirmButtonText || 'ตกลง',
+          confirmButtonColor: config.confirmButtonColor || '#B22222',
+          onCancel: () => {
+            setModal(null);
+            if (config.onCancel) config.onCancel();
+          },
+          showCancelButton: true,
+          cancelButtonText: config.cancelButtonText || 'ยกเลิก',
+          cancelButtonColor: config.cancelButtonColor || '#6C757D',
+        });
+      }, []); // Dependency array is empty
+
+      const loading = useCallback((config) => {
+        setModal({
+          type: 'loading',
+          title: config.title,
+          text: config.text || 'กรุณารอสักครู่...',
+          allowOutsideClick: config.allowOutsideClick === true, // default false
+        });
+      }, []); // Dependency array is empty
+
+      const hide = useCallback(() => {
+        setModal(null);
+      }, []); // Dependency array is empty
+
+      // Memoize the context value object itself
+      // contextValue จะถูกสร้างใหม่ *เฉพาะเมื่อ* ฟังก์ชัน (show, confirm, ...) ถูกสร้างใหม่
+      // (ซึ่งตอนนี้จะไม่เกิดขึ้นแล้วเพราะเราใช้ useCallback)
+      const contextValue = useMemo(() => ({
+        show,
+        confirm,
+        loading,
+        hide
+      }), [show, confirm, loading, hide]);
+      // --- END EDIT ---
+      
+      // Handle timed modal
+      useEffect(() => {
+        if (modal && modal.timer) {
+          const timerId = setTimeout(() => {
+            setModal(null);
+          }, modal.timer);
+          return () => clearTimeout(timerId);
+        }
+      }, [modal]);
+
+
+      return (
+        // --- START EDIT ---
+        // Use the memoized contextValue
+        <ModalContext.Provider value={contextValue}>
+        {/* --- END EDIT --- */}
+          {children}
+          {modal && <ModalRenderer modal={modal} />}
+        </ModalContext.Provider>
+      );
+    };
+
+    const useModal = () => React.useContext(ModalContext);
+
+    const ModalRenderer = ({ modal }) => {
+      const { type, title, text, html, onConfirm, onCancel, showConfirmButton, confirmButtonText, confirmButtonColor, showCancelButton, cancelButtonText, cancelButtonColor, allowOutsideClick, isDetails, dataItem } = modal; // <-- ADDED html, isDetails, dataItem
+
+      const handleOverlayClick = () => {
+        if (allowOutsideClick) {
+          if (onCancel) onCancel(); else onConfirm();
+        }
+      };
+      
+      const getIcon = () => {
+        switch (type) {
+          case 'success':
+            return <IconCheckCircle />;
+          case 'error':
+            return <IconXCircle />;
+          case 'warning':
+            return <IconExclamationTriangle />;
+          case 'loading':
+            return <IconSpinner />;
+          default:
+            return null;
+        }
+      };
+
+      return (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={handleOverlayClick}
+        >
+          <div 
+            className={`bg-white rounded-lg shadow-xl w-full ${isDetails ? 'max-w-2xl' : 'max-w-md'} p-6 m-4`}
+            onClick={(e) => e.stopPropagation()} // Prevent click from bubbling to overlay
+          >
+            <div className="flex flex-col items-center text-center">
+              {getIcon()}
+              <h3 className="text-xl font-bold text-[#212529] mt-4 mb-2">{title}</h3>
+              
+              {/* --- START EDIT: Render DetailsView component or simple text/html --- */}
+              
+              {/* Render DetailsView IF dataItem AND isDetails are provided */}
+              {dataItem && isDetails ? (
+                <DetailsView item={dataItem} />
+              ) : (
+                <>
+                  {/* Render simple text (for alerts) */}
+                  {text && <p className="text-sm text-[#6C757D] mb-6">{text}</p>}
+
+                  {/* Render simple HTML (for alerts, if needed) */}
+                  {html && (
+                    isDetails ? (
+                      // --- START EDIT: "Premium" Details Box ---
+                      <div 
+                        className="text-sm text-[#212529] text-left break-words max-h-[70vh] overflow-y-auto p-4 bg-[#F8F9FA] border border-[#E9ECEF] rounded-md my-4 w-full"
+                        dangerouslySetInnerHTML={{ __html: html }}
+                      />
+                      // --- END EDIT ---
+                    ) : (
+                      // Original style for short alerts
+                      <div 
+                        className="text-sm text-[#6C757D] mb-6 text-left break-words max-h-60 overflow-y-auto" // Set max height and scroll
+                        dangerouslySetInnerHTML={{ __html: html }}
+                      />
+                    )
+                  )}
+                </>
+              )}
+              {/* --- END EDIT --- */}
+              
+              <div className="flex items-center justify-center space-x-4 w-full">
+                {showCancelButton && (
+                  <button
+                    onClick={onCancel}
+                    style={{ backgroundColor: cancelButtonColor || '#6C757D', color: '#FFFFFF' }}
+                    className="py-2 px-4 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#6C757D] opacity-90 hover:opacity-100"
+                  >
+                    {cancelButtonText}
+                  </button>
+                )}
+                {showConfirmButton && (
+                   <button
+                    onClick={onConfirm}
+                    style={{ backgroundColor: confirmButtonColor, color: (confirmButtonColor === '#A2E4B8' ? '#212529' : '#FFFFFF') }}
+                    className="py-2 px-4 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#A2E4B8]"
+                  >
+                    {confirmButtonText}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+
+    // --- Helper Functions ---
+
+    /**
+     * ฟังก์ชันสำหรับเรียก API ของ Google Apps Script
+     * @param {string} action - 'login', 'read', 'create', 'update', 'delete'
+     * @param {object} data - ข้อมูลที่จะส่งไป (the actual data payload)
+     * @param {object} modal - The modal context object
+     * @returns {Promise<any>} - ผลลัพธ์จาก API
+     */
+    const apiCall = async (action, data = {}, modal) => { // <-- CHANGED SIGNATURE
+      try {
+        const response = await fetch(APP_SCRIPT_URL, {
+          method: 'POST',
+          redirect: "follow",
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8', // ใช้ text/plain เพื่อให้ Apps Script doPost(e) รับ e.postData.contents เป็น String
+          },
+          body: JSON.stringify({ action, ...data }) // <-- CHANGED: Send only action and data
+        });
+        
+        // Apps Script จะ trả về JSON string
+        const resultText = await response.text();
+        return JSON.parse(resultText);
+
+      } catch (error) {
+        console.error('API Call Error:', error);
+        // Use modal if available, otherwise fallback (though it won't be visible)
+        const errorMsg = `ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ${error.message}`;
+        if(modal) { // <-- modal is now a direct argument
+          modal.show({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: errorMsg,
+          });
+        } else {
+          console.error('Modal context not available in apiCall for error:', errorMsg);
+        }
+        return { status: 'error', message: error.message };
+      }
+    };
+
+    /**
+     * แปลงวันที่เป็นรูปแบบภาษาไทย
+     * @param {string} dateString - วันที่ (e.g., "2025-01-01")
+     * @returns {string} - e.g., "1 ม.ค. 2568"
+     */
+    const formatThaiDate = (dateString) => {
+      if (!dateString) return '';
+      try {
+        const date = new Date(dateString);
+        // (สำคัญ) ต้องระบุ timeZone: 'UTC' เพื่อป้องกันไม่ให้ Timezone ของบราวเซอร์
+        // ทำให้วันที่ (ซึ่งเป็น YYYY-MM-DD) เปลี่ยนไป
+        return date.toLocaleDateString('th-TH', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          timeZone: 'UTC' 
+        });
+      } catch (e) {
+        return dateString; // Fallback
+      }
+    };
+
+    /**
+     * สร้างรายการปีงบประมาณย้อนหลัง 5 ปี
+     * @returns {number[]} - e.g., [2568, 2567, 2566, 2565, 2564, 2563]
+     */
+    const getFiscalYears = () => {
+      const currentMonth = new Date().getMonth(); // 0-11
+      // ปีงบประมาณไทยเริ่ม 1 ต.ค. (เดือน 9)
+      let currentFiscalYear = new Date().getFullYear() + 543;
+      if (currentMonth >= 9) { // 9 = ตุลาคม
+        currentFiscalYear += 1;
+      }
+      
+      return Array.from({ length: 6 }, (_, i) => currentFiscalYear - i);
+    };
+
+    /**
+     * ย่อขนาดรูปภาพโดยใช้ Canvas
+     * @param {string} base64Src - Base64 string ของรูปภาพต้นฉบับ
+     * @returns {Promise<string>} - Base64 string ของรูปภาพที่ย่อขนาดแล้ว (JPEG)
+     */
+    const resizeImage = (base64Src) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = base64Src;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_IMAGE_SIZE) {
+              height *= MAX_IMAGE_SIZE / width;
+              width = MAX_IMAGE_SIZE;
+            }
+          } else {
+            if (height > MAX_IMAGE_SIZE) {
+              width *= MAX_IMAGE_SIZE / height;
+              height = MAX_IMAGE_SIZE;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // แปลงเป็น JPEG เพื่อลดขนาดไฟล์ (คุณภาพ 85%)
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = (error) => {
+          console.error("Image load error:", error);
+          reject(error);
+        };
+      });
+    };
+
+    /**
+     * แปลงไฟล์เป็น Base64
+     * @param {File} file - ไฟล์ที่ต้องการแปลง
+     * @returns {Promise<string>} - Base64 string
+     */
+    const fileToBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+      });
+    };
+
+    // Create clickable link from text
+    const formatDetails = (text) => {
+      if (!text) return '';
+      const urlRegex = /(https?:\/\/[^\s]+)/g; // แก้ไข regex
+      return text.replace(urlRegex, (url) => 
+        `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">${url}</a>`
+      ).replace(/\n/g, '<br />'); // CHANGED: Also replace newlines with <br> for better formatting
+    };
+
+
+    // --- Components ---
+
+    /**
+     * (NEW) Details View Component
+     * (This component renders the professional-looking details layout inside the modal)
+     */
+    const DetailsView = ({ item }) => {
+      return (
+        <div className="text-left w-full max-h-[70vh] overflow-y-auto space-y-5 pr-2">
+          
+          {/* 1. Title */}
+          <h3 className="text-xl font-bold text-[#00796B] mb-3">{item.Title}</h3>
+
+          {/* 2. Year & Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              {/* --- START EDIT --- */}
+              <h4 className="text-sm font-bold text-[#00796B] mb-1">ปีงบประมาณ พ.ศ.</h4>
+              {/* --- END EDIT --- */}
+              <p className="text-base text-[#212529]">{item.FiscalYear}</p>
+            </div>
+            <div>
+              {/* --- START EDIT --- */}
+              <h4 className="text-sm font-bold text-[#00796B] mb-1">วันที่จัดกิจกรรม</h4>
+              {/* --- END EDIT --- */}
+              <p className="text-base text-[#212529]">
+                {formatThaiDate(item.DateStart)}
+                {item.DateEnd && ` - ${formatThaiDate(item.DateEnd)}`}
+              </p>
+            </div>
+          </div>
+
+          {/* 3. Details */}
+          <div>
+            {/* --- START EDIT --- */}
+            <h4 className="text-sm font-bold text-[#00796B] mb-1">รายละเอียด (คำอธิบายเพิ่มเติม)</h4>
+            {/* --- END EDIT --- */}
+            {item.Details ? (
+              <div 
+                className="text-base text-[#212529] prose prose-sm max-w-none" 
+                dangerouslySetInnerHTML={{ __html: formatDetails(item.Details) }}
+              />
+            ) : (
+              <p className="text-base text-[#6C757D] italic">ไม่มีรายละเอียดเพิ่มเติม</p>
+            )}
+          </div>
+
+          {/* 4. Images */}
+          <div>
+            {/* --- START EDIT --- */}
+            <h4 className="text-sm font-bold text-[#00796B] mb-2">รูปภาพกิจกรรม</h4>
+            {/* --- END EDIT --- */}
+            <ImageGallery imageIds={[item.Image1_ID, item.Image2_ID, item.Image3_ID, item.Image4_ID]} />
+          </div>
+
+          {/* 5. Document Link */}
+          <div>
+            {/* --- START EDIT --- */}
+            <h4 className="text-sm font-bold text-[#00796B] mb-2">ลิงค์ดูไฟล์เอกสารที่เกี่ยวข้อง</h4>
+            {/* --- END EDIT --- */}
+            {item.DocumentFolderURL ? (
+              <a
+                href={item.DocumentFolderURL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 text-sm text-[#00796B] hover:underline bg-[#F0FBF4] px-3 py-2 rounded-md"
+              >
+                <IconLink />
+                <span>คลิกเพื่อเปิดโฟลเดอร์เอกสาร</span>
+              </a>
+            ) : (
+              <p className="text-base text-[#6C757D] italic">ไม่มีเอกสารแนบ</p>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+
+    /**
+     * Header Component
+     */
+    const Header = ({ page, onNav }) => (
+      <header className="bg-white shadow-md sticky top-0 z-10 font-['Noto_Sans_Thai_Looped',_sans-serif]">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          {/* --- START EDIT: New Logo Left --- */}
+          <div className="text-xl md:text-2xl font-bold text-[#00796B]">
+            EduLog
+          </div>
+          {/* --- END EDIT --- */}
+          <nav>
+            {/* --- START EDIT: New Right-side group (Text + Icon) --- */}
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* <span className="text-xs sm:text-sm font-medium text-gray-600 hidden sm:block">
+                EduLog System
+              </span> */} {/* <-- REMOVED THIS LINE */}
+              {page === 'admin' && (
+                <button
+                  onClick={() => onNav('home')}
+                  className="text-[#6C757D] hover:text-[#A2E4B8] transition duration-150"
+                  title="กลับหน้าแรก"
+                >
+                  <IconHome />
+                </button>
+              )}
+              {page === 'home' && (
+                <button
+                  onClick={() => onNav('login')}
+                  className="text-[#6C757D] hover:text-[#A2E4B8] transition duration-150"
+                  title="สำหรับผู้ดูแลระบบ"
+                >
+                  <IconAdmin />
+                </button>
+              )}
+            </div>
+            {/* --- END EDIT --- */}
+          </nav>
+        </div>
+      </header>
+    );
+
+    /**
+     * Footer Component
+     */
+    const Footer = () => (
+      <footer className="bg-white border-t border-[#E9ECEF] mt-12 py-6 text-center text-xs text-[#6C757D] font-['Noto_Sans_Thai_Looped',_sans-serif]">
+        <p>© 2025 EduLog System - V.5.1</p>
+        <p className="mt-1">
+          Powered by: Gemini AI (Initial Code Generation)
+          <br />
+          Implemented & Authored by: นายพิทักษ์ชัย ผายบึงแก้ว
+        </p>
+      </footer>
+    );
+
+    /**
+     * Login Page Component
+     */
+    const LoginPage = ({ onLoginSuccess }) => {
+      const [password, setPassword] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+      const modal = useModal(); // Get modal context
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        
+        const result = await apiCall('login', { password }, modal); // Pass modal // <-- CHANGED
+
+        setIsLoading(false);
+        if (result.status === 'success') {
+          onLoginSuccess();
+        } else {
+          modal.show({
+            icon: 'error',
+            title: 'รหัสผ่านไม่ถูกต้อง',
+            text: 'กรุณาลองใหม่อีกครั้ง',
+            confirmButtonColor: '#A2E4B8',
+          });
+          setPassword('');
+        }
+      };
+
+      return (
+        <div className="flex items-center justify-center py-12 px-4">
+          <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold text-center text-[#212529]">
+              🔒 สำหรับผู้ดูแลระบบ
+            </h2>
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-[#6C757D]"
+                >
+                  รหัสผ่าน
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm placeholder-[#6C757D] focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8]"
+                  placeholder="กรุณากรอกรหัสผ่าน"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#212529] bg-[#A2E4B8] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#A2E4B8] disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+              >
+                {isLoading && <IconLoading />}
+                {isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    };
+
+    /**
+     * Data Form Component
+     */
+    const DataForm = ({ onFormSubmit, initialData, onCancel }) => {
+      const isEditMode = !!initialData;
+      
+      // State for form fields
+      const [type, setType] = useState(initialData?.Type || CATEGORIES[0]);
+      const [fiscalYear, setFiscalYear] = useState(initialData?.FiscalYear || getFiscalYears()[0]);
+      const [title, setTitle] = useState(initialData?.Title || '');
+      const [dateStart, setDateStart] = useState(initialData?.DateStart || '');
+      const [dateEnd, setDateEnd] = useState(initialData?.DateEnd || '');
+      const [details, setDetails] = useState(initialData?.Details || '');
+      
+      // State for file uploads
+      const [images, setImages] = useState([]); // Array of File objects
+      const [imagePreviews, setImagePreviews] = useState([]); // <-- ADDED: State for preview URLs
+      const [documents, setDocuments] = useState([]); // Array of File objects
+      
+      // State for loading
+      const [isSubmitting, setIsSubmitting] = useState(false);
+      const modal = useModal(); // Get modal context
+
+      // ADDED: useEffect for cleaning up image preview URLs
+      useEffect(() => {
+        // Cleanup function to revoke object URLs and prevent memory leaks
+        return () => {
+          imagePreviews.forEach(url => URL.revokeObjectURL(url));
+        };
+      }, [imagePreviews]); // Dependency: run this when imagePreviews array itself is replaced
+
+      // File handling
+      const handleImageChange = (e) => {
+        const files = Array.from(e.target.files); // <-- ADDED: Get files
+        if (files.length > 4) { // <-- CHANGED: Use files.length
+          modal.show({
+            title: 'ข้อผิดพลาด', 
+            text: 'อัปโหลดรูปภาพได้สูงสุด 4 ภาพเท่านั้น', 
+            icon: 'warning'
+          });
+          setImages([]);
+          setImagePreviews([]); // <-- ADDED: Clear previews
+          e.target.value = null; // Clear file input
+        } else {
+          setImages(files); // <-- CHANGED: Use files
+          // ADDED: Create and set previews
+          const newPreviews = files.map(file => URL.createObjectURL(file));
+          setImagePreviews(newPreviews);
+        }
+      };
+
+      const handleDocumentChange = (e) => {
+        setDocuments(Array.from(e.target.files));
+      };
+
+      // Form submission
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        // 1. Validation
+        if (!type || !fiscalYear || !title || !dateStart) {
+          modal.show({
+            title: 'ข้อมูลไม่ครบถ้วน', 
+            text: 'กรุณากรอกข้อมูล * ที่จำเป็นให้ครบ', 
+            icon: 'warning'
+          });
+          return;
+        }
+        
+        if (isEditMode && images.length === 0 && !initialData?.Image1_ID) {
+           // In edit mode, if no new images are added, we keep the old ones.
+           // But if it's CREATE mode and no images, we should warn.
+        } else if (!isEditMode && images.length === 0) {
+            // We decided that images are not mandatory, but let's check the requirement
+            // Re-reading: 1.1.1-1.1.4 are mandatory. Images (1.1.6) are not in this list. So, it's fine.
+        }
+        
+        setIsSubmitting(true);
+        modal.loading({
+          title: isEditMode ? 'กำลังอัปเดตข้อมูล...' : 'กำลังบันทึกข้อมูล...',
+          text: 'กำลังประมวลผลไฟล์และบันทึกลงฐานข้อมูล...',
+          allowOutsideClick: false,
+        });
+
+        try {
+          // 2. Process Files to Base64
+          // Process Images with resizing
+          const imagePromises = images.map(async (file) => {
+            const base64 = await fileToBase64(file);
+            const resizedBase64 = await resizeImage(base64);
+            return {
+              fileName: file.name,
+              mimeType: 'image/jpeg', // Force JPEG after resizing
+              base64: resizedBase64.split(',')[1], // Remove "data:image/jpeg;base64,"
+            };
+          });
+          
+          // Process Documents
+          const documentPromises = documents.map(async (file) => {
+            const base64 = await fileToBase64(file);
+            return {
+              fileName: file.name,
+              mimeType: file.type,
+              base64: base64.split(',')[1], // Remove prefix
+            };
+          });
+
+          const processedImages = await Promise.all(imagePromises);
+          const processedDocuments = await Promise.all(documentPromises);
+
+          // 3. Prepare Payload
+          const payload = {
+            rowId: initialData?.RowID || null,
+            Type: type,
+            FiscalYear: fiscalYear,
+            Title: title,
+            DateStart: dateStart,
+            DateEnd: dateEnd,
+            Details: details,
+            // Send new files. Backend will decide whether to use them or keep old ones.
+            images: processedImages,
+            documents: processedDocuments,
+            // modal, // Pass modal context for apiCall // <-- REMOVED from payload
+          };
+
+          // 4. API Call
+          const action = isEditMode ? 'update' : 'create';
+          const result = await apiCall(action, payload, modal); // <-- CHANGED
+
+          if (result.status === 'success') {
+            modal.show({
+              icon: 'success',
+              title: isEditMode ? 'อัปเดตสำเร็จ!' : 'บันทึกสำเร็จ!',
+              text: 'ข้อมูลของคุณถูกบันทึกเรียบร้อยแล้ว',
+              timer: 2000,
+              showConfirmButton: false
+            });
+            onFormSubmit(result.data); // 'data' should be the updated/new row
+            resetForm();
+          } else {
+            throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึก');
+          }
+
+        } catch (error) {
+          console.error('Submission Error:', error);
+          // CHANGED: Improved error message handling
+          let errorMsg = error.message || 'ไม่สามารถบันทึกข้อมูลได้';
+          if (errorMsg.includes('Invalid POST action')) {
+            errorMsg = 'การดำเนินการบันทึกไม่ถูกต้อง (Invalid Action)';
+          } else if (errorMsg.includes('Failed to fetch')) {
+            errorMsg = `ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้`;
+          } else if (!error.message) {
+             errorMsg = 'ไม่สามารถบันทึกข้อมูลได้: เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
+          } else {
+            errorMsg = `ไม่สามารถบันทึกข้อมูลได้: ${error.message}`;
+          }
+          
+          modal.show({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด!',
+            text: errorMsg, // <-- CHANGED
+          });
+        } finally {
+          setIsSubmitting(false);
+        }
+      };
+      
+      const resetForm = () => {
+          // Don't reset in edit mode, just call onCancel
+          if(isEditMode) {
+              onCancel();
+              return;
+          }
+          setType(CATEGORIES[0]);
+          setFiscalYear(getFiscalYears()[0]);
+          setTitle('');
+          setDateStart('');
+          setDateEnd('');
+          setDetails('');
+          setImages([]);
+          setImagePreviews([]); // <-- ADDED
+          setDocuments([]);
+          // Clear file inputs (somewhat tricky, needs a key or ref, but for now this is ok)
+          document.getElementById('images').value = null;
+          document.getElementById('documents').value = null;
+      };
+
+
+      const fiscalYears = getFiscalYears();
+
+      return (
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-bold text-[#212529] mb-4 border-b border-[#E9ECEF] pb-2">
+            {isEditMode ? '📝 แก้ไขข้อมูลการปฏิบัติงาน' : '➕ เพิ่มข้อมูลการปฏิบัติงาน'}
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Row 1: Type & Year */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="type" className="block text-sm font-medium text-[#212529]">
+                  ประเภทของการพัฒนาตนเอง <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="type"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8] bg-white"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="fiscalYear" className="block text-sm font-medium text-[#212529]">
+                  ปีงบประมาณ พ.ศ. <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="fiscalYear"
+                  value={fiscalYear}
+                  onChange={(e) => setFiscalYear(e.target.value)}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8] bg-white"
+                >
+                  {fiscalYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Title */}
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-[#212529]">
+                ชื่อเรื่อง <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8]"
+              />
+            </div>
+
+            {/* Row 3: Dates */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="dateStart" className="block text-sm font-medium text-[#212529]">
+                  วันที่ (เริ่มต้น) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  id="dateStart"
+                  value={dateStart}
+                  onChange={(e) => setDateStart(e.target.value)}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8]"
+                />
+              </div>
+              <div>
+                <label htmlFor="dateEnd" className="block text-sm font-medium text-[#212529]">
+                  วันที่ (สิ้นสุด) (ถ้ามี)
+                </label>
+                <input
+                  type="date"
+                  id="dateEnd"
+                  value={dateEnd}
+                  onChange={(e) => setDateEnd(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8]"
+                />
+              </div>
+            </div>
+
+            {/* Row 4: Details */}
+            <div>
+              <label htmlFor="details" className="block text-sm font-medium text-[#212529]">
+                รายละเอียด (คำอธิบายเพิ่มเติม)
+              </label>
+              <textarea
+                id="details"
+                rows="4"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8]"
+                placeholder="อธิบายรายละเอียดกิจกรรม... หากมีการแนบลิงค์ ลิงค์จะสามารถกดได้เมื่อแสดงผล"
+              ></textarea>
+            </div>
+
+            {/* Row 5: File Uploads */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="images" className="block text-sm font-medium text-[#212529]">
+                  อัปโหลดภาพ (สูงสุด 4 ภาพ)
+                </label>
+                <input
+                  type="file"
+                  id="images"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="mt-1 block w-full text-sm text-[#6C757D] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#F0FBF4] file:text-[#212529] hover:file:bg-[#A2E4B8]"
+                />
+                {/* --- START EDIT --- */}
+                {/* Logic to show existing images OR new image count */}
+                {images.length > 0 ? (
+                  <p className="text-xs text-[#6C757D] mt-1">
+                    {`เลือกแล้ว ${images.length} ภาพ`}
+                  </p>
+                ) : isEditMode && (initialData.Image1_ID || initialData.Image2_ID || initialData.Image3_ID || initialData.Image4_ID) ? (
+                  <div className="mt-2 p-2 border border-[#E9ECEF] rounded-md bg-[#F8F9FA]">
+                    <h4 className="text-xs font-semibold text-[#6C757D] mb-2">ภาพเดิม (เลือกใหม่เพื่อทับที่):</h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[initialData.Image1_ID, initialData.Image2_ID, initialData.Image3_ID, initialData.Image4_ID]
+                        .filter(id => id) // Filter out empty IDs
+                        .map((id, index) => (
+                          <div key={id} className="aspect-square rounded-md overflow-hidden shadow-sm">
+                            <img
+                              src={`https://drive.google.com/thumbnail?id=${id}`}
+                              alt={`ภาพเดิม ${index + 1}`}
+                              className="w-full h-full object-cover"
+                               onError={(e) => {
+                                 e.target.src = `https://placehold.co/100x100/E9ECEF/6C757D?text=Img+${index + 1}`;
+                               }}
+                            />
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#6C757D] mt-1">
+                    ยังไม่ได้เลือกภาพ
+                  </p>
+                )}
+                {/* --- END EDIT --- */}
+                
+                {/* ADDED: Image Preview Section */}
+                {imagePreviews.length > 0 && (
+                  <div className="mt-2 grid grid-cols-4 gap-2 p-2 border border-[#E9ECEF] rounded-md bg-[#F8F9FA]">
+                    {imagePreviews.map((url, index) => (
+                      <div key={index} className="aspect-square rounded-md overflow-hidden shadow-sm">
+                        <img
+                          src={url}
+                          alt={`ตัวอย่างภาพที่ ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label htmlFor="documents" className="block text-sm font-medium text-[#212529]">
+                  อัปโหลดเอกสาร (เลือกหลายไฟล์ได้)
+                </label>
+                {/* --- START EDIT --- */}
+                <input
+                  type="file"
+                  id="documents"
+                  multiple
+                  onChange={handleDocumentChange}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" // <-- ADDED: Accept only document types
+                  className="mt-1 block w-full text-sm text-[#6C757D] file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#F0FBF4] file:text-[#212529] hover:file:bg-[#A2E4B8]"
+                />
+                {/* --- END EDIT --- */}
+                {/* --- START EDIT --- */}
+                {/* Logic to show existing document link OR new file count */}
+                {documents.length > 0 ? (
+                   <p className="text-xs text-[#6C757D] mt-1">
+                    {`เลือกแล้ว ${documents.length} ไฟล์`}
+                   </p>
+                ) : isEditMode && initialData?.DocumentFolderURL ? (
+                  <div className="mt-2 p-3 border border-[#E9ECEF] rounded-md bg-[#F8F9FA]">
+                    <h4 className="text-xs font-semibold text-[#6C757D] mb-2">ไฟล์เดิม (เลือกใหม่เพื่อทับที่):</h4>
+                    <a
+                      href={initialData.DocumentFolderURL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-sm text-[#00796B] hover:underline truncate"
+                      title="คลิกเพื่อเปิดโฟลเดอร์เอกสารเดิม"
+                    >
+                      <IconLink />
+                      <span className="ml-2 truncate">คลิกเพื่อดูเอกสารเดิม</span>
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#6C757D] mt-1">
+                    ยังไม่ได้เลือกไฟล์
+                  </p>
+                )}
+                {/* --- END EDIT --- */}
+                {/* --- START EDIT --- */}
+                {/* ADDED: Document Filename List */}
+                {documents.length > 0 && (
+                  <div className="mt-2 p-3 border border-[#E9ECEF] rounded-md bg-[#F8F9FA]">
+                    <h4 className="text-xs font-semibold text-[#6C757D] mb-2">ไฟล์ที่เลือก:</h4>
+                    <ul className="space-y-1">
+                      {documents.map((file, index) => (
+                        <li key={index} className="flex items-center text-sm text-[#212529] truncate" title={file.name}>
+                          <IconLink /> {/* Using existing icon */}
+                          <span className="ml-2">{file.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* --- END EDIT --- */}
+              </div>
+            </div>
+
+            {/* Row 6: Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-[#E9ECEF]">
+               {isEditMode && (
+                 <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={isSubmitting}
+                    className="py-2 px-4 border border-[#E9ECEF] rounded-md shadow-sm text-sm font-medium text-[#212529] bg-white hover:bg-[#F8F9FA] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#A2E4B8] transition duration-150"
+                 >
+                    ยกเลิก
+                 </button>
+               )}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex justify-center py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-bold text-[#212529] bg-[#A2E4B8] hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#A2E4B8] disabled:opacity-50 disabled:cursor-not-allowed transition duration-150"
+              >
+                {isSubmitting && <IconLoading />}
+                {isSubmitting ? 'กำลังบันทึก...' : (isEditMode ? 'อัปเดตข้อมูล' : 'บันทึกข้อมูล')}
+              </button>
+            </div>
+          </form>
+        </div>
+      );
+    };
+
+    /**
+     * Image Gallery Component
+     */
+    const ImageGallery = ({ imageIds = [] }) => {
+      if (imageIds.filter(id => id).length === 0) {
+        return <p className="text-sm text-[#6C757D] text-center py-4">ไม่มีรูปภาพ</p>;
+      }
+      
+      // --- START EDIT ---
+      // สร้าง URL ที่แตกต่างกันสำหรับ href (เปิดดู) และ src (แสดงผล)
+      // Google Drive มักจะบล็อกลิงก์ /uc (User Content) เมื่อใช้ใน <img>
+      // เราจึงใช้ /thumbnail สำหรับ <img> และ /file/d/.../view สำหรับ <a>
+      const imageLinks = imageIds
+        .filter(id => id) // กรอง ID ที่ไม่ใช่ค่าว่าง
+        .map(id => ({
+          href: `https://drive.google.com/file/d/${id}/view?usp=sharing`, // ลิงก์สำหรับเปิดดูไฟล์
+          src: `https://drive.google.com/thumbnail?id=${id}` // ลิงก์สำหรับแสดงภาพ thumbnail
+        }));
+      // --- END EDIT ---
+
+      return (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-4 bg-[#F8F9FA] rounded-md">
+          {/* --- START EDIT --- */}
+          {imageLinks.map((link, index) => (
+            <a
+              key={index}
+              href={link.href} // <-- CHANGED
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg overflow-hidden shadow-md aspect-square"
+            >
+              <img
+                src={link.src} // <-- CHANGED
+                alt={`ภาพกิจกรรม ${index + 1}`}
+                className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                // Fallback เผื่อรูปโหลดไม่ได้
+                onError={(e) => {
+                  e.target.src = `https://placehold.co/400x400/E9ECEF/6C757D?text=Image+${index + 1}`;
+                  e.target.alt = "ไม่สามารถโหลดรูปภาพได้";
+                }}
+              />
+            </a>
+          ))}
+          {/* --- END EDIT --- */}
+        </div>
+      );
+    };
+
+    /**
+     * Pagination Component
+     */
+    const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+      if (totalPages <= 1) return null;
+
+      const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+      return (
+        <nav className="flex justify-center items-center space-x-2 mt-4">
+          <button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-3 py-1 rounded-md text-sm font-medium text-[#6C757D] bg-white border border-[#E9ECEF] hover:bg-[#F8F9FA] disabled:opacity-50"
+          >
+            ก่อนหน้า
+          </button>
+          {pages.map((page) => (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`px-3 py-1 rounded-md text-sm font-medium border ${
+                page === currentPage
+                  ? 'bg-[#A2E4B8] text-[#212529] border-[#A2E4B8]'
+                  : 'bg-white text-[#6C757D] border-[#E9ECEF] hover:bg-[#F8F9FA]'
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 rounded-md text-sm font-medium text-[#6C757D] bg-white border border-[#E9ECEF] hover:bg-[#F8F9FA] disabled:opacity-50"
+          >
+            ถัดไป
+          </button>
+        </nav>
+      );
+    };
+
+    /**
+     * (NEW) Dashboard Card Component
+     */
+    const DashboardCard = ({ item, onClick }) => {
+      return (
+        <button
+          onClick={onClick}
+          className="group bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 block text-left w-full"
+          title={`คลิกเพื่อดู: ${item.Title}`}
+        >
+          {/* Image */}
+          {/* --- START EDIT: Change h-40 to h-48 --- */}
+          <div className="w-full h-48 bg-gray-200 overflow-hidden relative">
+          {/* --- END EDIT --- */}
+            <img
+              src={`https://drive.google.com/thumbnail?id=${item.Image1_ID}`}
+              alt={item.Title}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
+                e.target.src = `https://placehold.co/400x300/E9ECEF/6C757D?text=Image`;
+                e.target.alt = "ไม่สามารถโหลดรูปภาพ";
+              }}
+            />
+             {/* Gradient overlay for better text readability */}
+             {/* --- START EDIT: Add transition and group-hover effect --- */}
+             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent transition-all duration-300 group-hover:from-black/70"></div>
+             {/* --- END EDIT --- */}
+          </div>
+          {/* Content */}
+          <div className="p-4">
+            <p className="text-xs font-medium text-[#00796B] mb-1">
+              {formatThaiDate(item.DateStart)}
+            </p>
+            <h3 
+              className="text-sm font-semibold text-[#212529] line-clamp-2 h-10" // h-10 ensures 2 lines height
+            >
+              {item.Title}
+            </h3>
+          </div>
+        </button>
+      );
+    };
+
+    /**
+     * (NEW) Recent Activity Dashboard Component
+     */
+    const RecentActivityDashboard = ({ items, modal }) => {
+      
+      const handleCardClick = (item) => {
+        modal.show({
+          title: "รายละเอียดการปฏิบัติงาน",
+          dataItem: item, // Pass the whole item to render DetailsView
+          confirmButtonText: 'ปิด',
+          confirmButtonColor: '#A2E4B8',
+          isDetails: true,
+        });
+      };
+
+      return (
+        <div className="my-8"> {/* Margin top and bottom */}
+          {/* --- START EDIT: Style Header --- */}
+          <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00796B] to-[#004D40] mb-5 pb-2 border-b border-[#E9ECEF]">
+            ✨ การปฏิบัติงานล่าสุด
+          </h2>
+          {/* --- END EDIT --- */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {items.map((item) => (
+              <DashboardCard 
+                key={item.RowID} 
+                item={item} 
+                onClick={() => handleCardClick(item)} 
+              />
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+
+    /**
+     * Data Table Component
+     */
+    const DataTable = ({ data, onEdit, onDelete, modal, isPublic = false }) => { // <-- ADDED modal prop & isPublic
+      const [filters, setFilters] = useState({ year: '', type: '' });
+      const [currentPage, setCurrentPage] = useState(1);
+      const [showImageMap, setShowImageMap] = useState({}); // { rowId: boolean }
+      const fiscalYears = getFiscalYears();
+      
+      // 1. Filter Data
+      const filteredData = useMemo(() => {
+        return data
+          .filter(item => {
+            const matchYear = filters.year ? item.FiscalYear.toString() === filters.year : true;
+            const matchType = filters.type ? item.Type === filters.type : true;
+            return matchYear && matchType;
+          })
+          // 2. Sort Data (ปีงบประมาณล่าสุดก่อน, แล้วตามวันที่เริ่ม)
+          .sort((a, b) => {
+            if (b.FiscalYear !== a.FiscalYear) {
+              return b.FiscalYear - a.FiscalYear; // ปีมากไปน้อย
+            }
+            // ถ้าปีเดียวกัน ให้เรียงตามวันที่เริ่ม (ล่าสุดก่อน)
+            return new Date(b.DateStart) - new Date(a.DateStart);
+          });
+      }, [data, filters]);
+
+      // 3. Paginate Data
+      const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+      const paginatedData = filteredData.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+      );
+      
+      // Reset page to 1 when filters change
+      useEffect(() => {
+        setCurrentPage(1);
+      }, [filters]);
+      
+      // Toggle image visibility
+      const toggleImages = (rowId) => {
+        setShowImageMap(prev => ({ ...prev, [rowId]: !prev[rowId] }));
+      };
+      
+      // Create clickable link from text
+      // (MOVED TO GLOBAL)
+      // const formatDetails = (text) => { ... };
+
+      return (
+        <div className="bg-white p-6 rounded-lg shadow-lg mt-8">
+          {/* --- START EDIT --- */}
+          <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-4 gap-3">
+            {/* --- START EDIT: Style Header --- */}
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00796B] to-[#004D40] whitespace-nowrap">
+              ☰ คลังข้อมูลการปฏิบัติงาน
+            </h2>
+            {/* --- END EDIT --- */}
+            {/* Add button ONLY for Admin data table */}
+            {!isPublic && (
+              <button
+                onClick={() => {
+                  const dbUrl = "https://docs.google.com/spreadsheets/d/1QBRw1WRMW_WDXoBV59YGOjwLnYV1h4aLXpxMxdoJcds/edit?usp=sharing";
+                  
+                  // (Tailwind classes won't work in dangerouslySetInnerHTML, must use inline styles)
+                  const modalHtml = `
+                    <div style="text-align: left; font-family: 'Noto Sans Thai Looped', sans-serif; space-y: 1rem;">
+                      <a
+                        href="${dbUrl}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style="display: inline-flex; align-items: center; justify-content: center; width: 100%; gap: 0.5rem; padding-top: 0.75rem; padding-bottom: 0.75rem; padding-left: 1.5rem; padding-right: 1.5rem; border: 1px solid transparent; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); font-size: 1.125rem; font-weight: 700; color: #212529; background-color: #A2E4B8; text-decoration: none; transition: background-color 0.15s ease-in-out;"
+                        onmouseover="this.style.opacity='0.8'"
+                        onmouseout="this.style.opacity='1'"
+                      >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 1.25rem; height: 1.25rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        <span>เปิด Google Sheet</span>
+                      </a>
+                      <div style="background-color: #F8F9FA; padding: 1.25rem; border-radius: 0.375rem; border: 1px solid #E9ECEF; margin-top: 1.5rem;">
+                        <div style="margin-bottom: 1rem;">
+                          <h4 style="font-size: 0.875rem; font-weight: 700; color: #00796B; margin-bottom: 0.25rem;">อีเมลผู้สร้าง:</h4>
+                          <p style="font-size: 1rem; color: #212529; word-break: break-word; margin: 0;">g4779pitakchaiph@kurupatana.ac.th</p>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                          <h4 style="font-size: 0.875rem; font-weight: 700; color: #00796B; margin-bottom: 0.25rem;">ที่อยู่ฐานข้อมูล (Sheet):</h4>
+                          <p style="font-size: 1rem; color: #212529; word-break: break-word; margin: 0;">/11-App Sheet/ระบบบันทึกข้อมูลการปฏิบัติงาน/</p>
+                        </div>
+                        <div>
+                          <h4 style="font-size: 0.875rem; font-weight: 700; color: #00796B; margin-bottom: 0.25rem;">ที่อยู่โฟลเดอร์เก็บข้อมูล (Drive):</h4>
+                          <p style="font-size: 1rem; color: #212529; word-break: break-word; margin: 0;">/11-App Sheet/ระบบบันทึกข้อมูลการปฏิบัติงาน/โฟลเดอร์เก็บไฟล์รูป ไฟล์เอกสาร</p>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                  
+                  modal.show({
+                    title: "📁 ข้อมูลฐานข้อมูล",
+                    html: modalHtml,
+                    isDetails: true, // Use wider modal
+                    confirmButtonText: 'ปิด',
+                    confirmButtonColor: '#A2E4B8',
+                  });
+                }}
+                className="inline-flex items-center space-x-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-[#212529] bg-[#F0FBF4] hover:bg-[#A2E4B8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#A2E4B8] transition duration-150 flex-shrink-0"
+              >
+                <IconExternalLink /> 
+                <span>เปิดข้อมูลฐานข้อมูล</span>
+              </button>
+            )}
+          </div>
+          {/* --- END EDIT --- */}
+          
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-[#F8F9FA] rounded-md">
+            <div>
+              <label htmlFor="filterYear" className="block text-sm font-medium text-[#6C757D]">
+                กรองตามปีงบประมาณ
+              </label>
+              <select
+                id="filterYear"
+                value={filters.year}
+                onChange={(e) => setFilters(prev => ({...prev, year: e.target.value}))}
+                className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8] bg-white"
+              >
+                <option value="">ทั้งหมด</option>
+                {fiscalYears.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="filterType" className="block text-sm font-medium text-[#6C757D]">
+                กรองตามประเภท
+              </label>
+              <select
+                id="filterType"
+                value={filters.type}
+                onChange={(e) => setFilters(prev => ({...prev, type: e.target.value}))}
+                className="mt-1 block w-full px-3 py-2 border border-[#E9ECEF] rounded-md shadow-sm focus:outline-none focus:ring-[#A2E4B8] focus:border-[#A2E4B8] bg-white"
+              >
+                <option value="">ทั้งหมด</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div className="self-end">
+               <button
+                onClick={() => setFilters({ year: '', type: '' })}
+                className="w-full md:w-auto mt-1 py-2 px-4 border border-[#E9ECEF] rounded-md shadow-sm text-sm font-medium text-[#212529] bg-white hover:bg-[#F8F9FA] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#A2E4B8] transition duration-150"
+              >
+                ล้างตัวกรอง
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead className="border-b-2 border-[#DEE2E6]">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-[#212529] uppercase tracking-wider">
+                    ปีงบฯ
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-[#212529] uppercase tracking-wider">
+                    วันที่จัดกิจกรรม
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-[#212529] uppercase tracking-wider">
+                    ชื่อเรื่อง / ประเภท
+                  </th>
+                  {/* ADDED COLUMN */}
+                  <th className="px-4 py-3 text-left text-xs font-bold text-[#212529] uppercase tracking-wider">
+                    รูปภาพ
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-[#212529] uppercase tracking-wider">
+                    ไฟล์/เอกสาร
+                  </th>
+                  {/* --- START EDIT: Conditional Columns --- */}
+                  {!isPublic && (
+                    <th className="px-4 py-3 text-left text-xs font-bold text-[#212529] uppercase tracking-wider">
+                      จัดการ
+                    </th>
+                  )}
+                  {isPublic && (
+                    <th className="px-4 py-3 text-center text-xs font-bold text-[#212529] uppercase tracking-wider">
+                      รายละเอียด
+                    </th>
+                  )}
+                  {/* --- END EDIT --- */}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E9ECEF]">
+                {paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-4 py-6 text-center text-[#6C757D]">
+                      ไม่พบข้อมูล
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData.map((item, index) => (
+                    <React.Fragment key={item.RowID}>
+                      <tr className={index % 2 === 0 ? 'bg-white' : 'bg-[#F0FBF4]'}>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-[#212529]">
+                          {item.FiscalYear}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowTTrAuncate text-sm text-[#212529]">
+                          {formatThaiDate(item.DateStart)}
+                          {item.DateEnd && ` - ${formatThaiDate(item.DateEnd)}`}
+                        </td>
+                        <td className="px-4 py-4 max-w-sm">
+                          {/* --- START EDIT: Conditionally add info button for Admin --- */}
+                          {/* CHANGED: Added flex wrapper and conditional info button */}
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-semibold text-[#212529] truncate" title={item.Title}>
+                              {item.Title}
+                            </span>
+                            {/* Show details button ONLY for Admin (not public) */}
+                            {!isPublic && (
+                              <button
+                                onClick={() => modal.show({
+                                  title: "รายละเอียด: " + item.Title,
+                                  html: item.Details ? formatDetails(item.Details) : '<p>ไม่มีรายละเอียดเพิ่มเติม</p>',
+                                  confirmButtonText: 'ปิด',
+                                  confirmButtonColor: '#A2E4B8',
+                                  isDetails: true,
+                                })}
+                                className="text-blue-600 hover:text-white p-1 rounded-md bg-blue-100 hover:bg-blue-500 transition flex-shrink-0"
+                                title="ดูรายละเอียด"
+                              >
+                                <IconInfo />
+                              </button>
+                            )}
+                          </div>
+                          {/* --- END EDIT --- */}
+                          <div className="text-xs text-[#6C757D]">{item.Type}</div>
+                        </td>
+
+                        {/* 4. คอลัมน์ "รูปภาพ" */}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          {/* --- START EDIT --- */}
+                          {/* ตรวจสอบว่ามีรูปภาพหรือไม่ก่อนที่จะแสดงปุ่ม
+                            โดยเช็คว่า field ImageX_ID มีค่า (truthy) หรือไม่
+                          */}
+                          {(() => {
+                            const hasImages = [item.Image1_ID, item.Image2_ID, item.Image3_ID, item.Image4_ID].some(id => id);
+                            
+                            return hasImages ? (
+                              <button
+                                onClick={() => toggleImages(item.RowID)}
+                                className="text-left text-sm text-[#212529] hover:text-[#00796B] transition duration-150"
+                              >
+                                {/* เปลี่ยนข้อความตามสถานะ */}
+                                🖼️ {showImageMap[item.RowID] ? 'ซ่อนรูปภาพ' : 'แสดงรูปภาพ'}
+                              </button>
+                            ) : (
+                              <span className="text-sm text-[#6C757D]">ไม่มีรูปภาพ</span>
+                            );
+                          })()}
+                          {/* --- END EDIT --- */}
+                        </td>
+                        
+                        {/* 5. คอลัมน์ "ไฟล์/เอกสาร" */}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          {/* Document Link Button */}
+                          {item.DocumentFolderURL ? (
+                            <a
+                              href={item.DocumentFolderURL}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-1 text-sm text-[#00796B] hover:underline"
+                            >
+                              <IconLink />
+                              <span>ดูเอกสาร</span>
+                            </a>
+                          ) : (
+                            <span className="text-sm text-[#6C757D]">ไม่มีเอกสาร</span>
+                          )}
+                        </td>
+                        
+                        {/* 6. คอลัมน์ "จัดการ" / "รายละเอียด" */}
+                        {/* --- START EDIT: Conditional Columns --- */}
+                        {!isPublic && (
+                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-2">
+                              {/* REMOVED: View Details Button was here */}
+                              
+                              <button
+                                onClick={() => onEdit(item)}
+                                className="text-[#212529] hover:text-[#00796B] p-1 rounded-md bg-[#A2E4B8] bg-opacity-50 hover:bg-opacity-100 transition"
+                                title="แก้ไข"
+                              >
+                                <IconEdit />
+                              </button>
+                              <button
+                                onClick={() => onDelete(item.RowID)}
+                                className="text-[#B22222] hover:text-white p-1 rounded-md bg-red-100 hover:bg-red-500 transition"
+                                title="ลบ"
+                              >
+                                <IconDelete />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                        {isPublic && (
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
+                            {/* --- START EDIT: Public "View Details" button --- */}
+                            {/* This button now passes the entire 'item' object */}
+                            <button
+                              onClick={() => modal.show({
+                                title: "รายละเอียดการปฏิบัติงาน", // New generic title
+                                dataItem: item, // Pass the whole item
+                                confirmButtonText: 'ปิด',
+                                confirmButtonColor: '#A2E4B8',
+                                isDetails: true,
+                              })}
+                              className="text-blue-600 hover:text-white p-1 rounded-md bg-blue-100 hover:bg-blue-500 transition flex-shrink-0"
+                              title="ดูรายละเอียด"
+                            >
+                              <IconInfo />
+                            </button>
+                            {/* --- END EDIT --- */}
+                          </td>
+                        )}
+                        {/* --- END EDIT --- */}
+                      </tr>
+                      {/* Collapsible Image Gallery Row */}
+                      {showImageMap[item.RowID] && (
+                        <tr className={index % 2 === 0 ? 'bg-white' : 'bg-[#F0FBF4]'}>
+                          <td colSpan="6" className="p-0">
+                            <ImageGallery
+                              imageIds={[
+                                item.Image1_ID,
+                                item.Image2_ID,
+                                item.Image3_ID,
+                                item.Image4_ID,
+                              ]}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      );
+    };
+
+    /**
+     * Admin Page Component
+     */
+    const AdminPage = () => {
+      const [data, setData] = useState([]);
+      const [isLoading, setIsLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [editingItem, setEditingItem] = useState(null); // null or item object
+      const modal = useModal(); // Get modal context
+      
+      // Fetch data on mount
+      const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        const result = await apiCall('read', {}, modal); // Pass modal // <-- CHANGED
+        if (result.status === 'success') {
+          setData(result.data);
+        } else {
+          // CHANGED: Improved error message handling
+          let errorMsg = result.message || 'ไม่สามารถโหลดข้อมูลได้';
+          if (errorMsg.includes('Invalid POST action')) {
+            errorMsg = 'การดำเนินการไม่ถูกต้อง (Invalid Action)';
+          } else if (!result.message) {
+            errorMsg = 'ไม่สามารถโหลดข้อมูลได้';
+          }
+          
+          // ADDED: SHOW MODAL for server-side errors
+          modal.show({
+            icon: 'error',
+            title: 'ไม่สามารถโหลดข้อมูล',
+            text: errorMsg,
+          });
+          
+          setError(errorMsg); // <-- Set error state for the table area
+        }
+        setIsLoading(false);
+      }, [modal]); // Add modal to dependencies
+
+      useEffect(() => {
+        fetchData();
+      }, [fetchData]);
+
+      // Handle Form Submission (Create or Update)
+      const handleFormSubmit = (submittedRow) => {
+        // The form (DataForm) has already shown its success modal.
+        // The 'submittedRow' parameter is the data returned from the API.
+        // Instead of an optimistic update (which seems to be failing), 
+        // we will re-fetch all data from the server to ensure consistency.
+        
+        fetchData(); // <-- CHANGED: Re-fetch all data from the server
+        
+        setEditingItem(null); // Close form/modal if in edit mode
+      };
+
+      // Handle Delete
+      const handleDelete = (rowId) => {
+        modal.confirm({
+          title: 'คุณแน่ใจหรือไม่?',
+          text: "คุณจะไม่สามารถกู้คืนข้อมูลนี้ได้!",
+          icon: 'warning',
+          confirmButtonColor: '#B22222',
+          confirmButtonText: 'ใช่, ลบเลย!',
+          cancelButtonText: 'ยกเลิก',
+          onConfirm: async () => {
+            modal.loading({
+              title: 'กำลังลบ...',
+              allowOutsideClick: false,
+            });
+
+            const apiResult = await apiCall('delete', { rowId }, modal); // <-- CHANGED
+
+            if (apiResult.status === 'success') {
+              modal.show({
+                icon: 'success',
+                title: 'ลบสำเร็จ!', 
+                text: 'ข้อมูลถูกลบเรียบร้อยแล้ว',
+                timer: 2000,
+                showConfirmButton: false
+              });
+              // Remove from state
+              setData(prevData => prevData.filter(item => item.RowID !== rowId));
+            } else {
+              // CHANGED: Improved error message handling
+              let errorMsg = apiResult.message || 'ไม่สามารถลบข้อมูลได้';
+              if (errorMsg.includes('Invalid POST action')) {
+                errorMsg = 'การดำเนินการลบไม่ถูกต้อง (Invalid Action)';
+              }
+              
+              modal.show({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด', 
+                text: errorMsg // <-- CHANGED
+              });
+            }
+          }
+        });
+      };
+      
+      // Handle Edit
+      const handleEdit = (item) => {
+        setEditingItem(item);
+        // Scroll to top to show the form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      
+      const handleCancelEdit = () => {
+        setEditingItem(null);
+      };
+
+      return (
+        <div>
+          <DataForm 
+            key={editingItem ? editingItem.RowID : 'new'} // Reset form when editingItem changes
+            onFormSubmit={handleFormSubmit}
+            initialData={editingItem}
+            onCancel={handleCancelEdit}
+          />
+
+          {isLoading ? (
+            <div className="text-center py-10 text-[#6C757D]">กำลังโหลดข้อมูล...</div>
+          ) : error ? (
+            <div className="text-center py-10 text-red-500">{error}</div>
+          ) : (
+            <DataTable
+              data={data}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              modal={modal} // <-- ADDED
+              isPublic={false} // <-- ADDED for clarity
+            />
+          )}
+        </div>
+      );
+    };
+
+
+    /**
+     * Home Page Component
+     */
+    const HomePage = () => {
+      // --- START EDIT: Add Data Fetching Logic (Copied from AdminPage) ---
+      const [data, setData] = useState([]);
+      const [isLoading, setIsLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const modal = useModal(); // Get modal context
+      
+      // --- START EDIT: Add state for collapsible intro ---
+      const [isIntroOpen, setIsIntroOpen] = useState(false);
+      // --- END EDIT ---
+
+      // --- START EDIT: Add memo for recent activities ---
+      const recentActivities = useMemo(() => {
+          return data
+            .filter(item => item.Image1_ID) // Must have an image
+            .sort((a, b) => new Date(b.DateStart) - new Date(a.DateStart)) // Newest first
+            .slice(0, 8); // Max 8
+      }, [data]);
+      // --- END EDIT ---
+
+      const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        const result = await apiCall('read', {}, modal); 
+        if (result.status === 'success') {
+          setData(result.data);
+        } else {
+          let errorMsg = result.message || 'ไม่สามารถโหลดข้อมูลได้';
+          if (errorMsg.includes('Invalid POST action')) {
+            errorMsg = 'การดำเนินการไม่ถูกต้อง (Invalid Action)';
+          } else if (!result.message) {
+            errorMsg = 'ไม่สามารถโหลดข้อมูลได้';
+          }
+          
+          // Don't show modal on public page load error, just set error text
+          // modal.show({
+          //   icon: 'error',
+          //   title: 'ไม่สามารถโหลดข้อมูล',
+          //   text: errorMsg,
+          // });
+          setError(errorMsg); 
+        }
+        setIsLoading(false);
+      }, [modal]); 
+
+      useEffect(() => {
+        fetchData();
+      }, [fetchData]);
+      // --- END EDIT: Add Data Fetching Logic ---
+
+      return (
+        // --- START EDIT: Redesigned HomePage Header ---
+        <>
+          <div className="text-center py-10 px-4 bg-white rounded-lg shadow-lg">
+            
+            {/* 1. New Main Title (Gradient, "Expensive") */}
+            {/* --- START EDIT: Adjust text, size, and line break --- */}
+            <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00796B] to-[#004D40] mb-6">
+              EduLog (เอดู-ล็อก)
+              <br /> {/* Force break on all screen sizes */}
+              ศูนย์รวมร่องรอยการพัฒนา และผลสัมฤทธิ์ทางการศึกษา
+            </h1>
+            {/* --- END EDIT --- */}
+            
+            {/* 2. Author/School Info */}
+            <div className="mt-6 border-t border-[#E9ECEF] pt-6 max-w-3xl mx-auto">
+              <p className="text-lg font-medium text-[#212529]">
+                นายพิทักษ์ชัย ผายบึงแก้ว กลุ่มสาระการเรียนรู้ วิทยาศาสตร์และเทคโนโลยี
+              </p>
+              <p className="text-lg font-medium text-[#00796B] mt-1">
+                โรงเรียนตระกาศประชาสามัคคี
+              </p>
+            </div>
+
+            {/* 3. New Introduction Paragraph ("คำนำ") */}
+            {/* --- START EDIT: Make introduction collapsible --- */}
+            <div className="mt-8 max-w-3xl mx-auto text-left">
+              
+              {/* Toggle Button */}
+              <button
+                onClick={() => setIsIntroOpen(!isIntroOpen)}
+                className="flex items-center space-x-2 text-sm font-medium text-[#00796B] hover:text-[#004D40] transition duration-150"
+              >
+                <span>{isIntroOpen ? 'ซ่อนคำอธิบาย' : 'อ่านจุดประสงค์ของระบบ'}</span>
+                <span className={`transform transition-transform duration-300 ${isIntroOpen ? 'rotate-180' : 'rotate-0'}`}>
+                  <IconChevronDown />
+                </span>
+              </button>
+
+              {/* Collapsible Content */}
+              <div 
+                className={`
+                  grid transition-all duration-500 ease-in-out
+                  ${isIntroOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}
+                `}
+              >
+                <div className="overflow-hidden"> {/* Grid trick wrapper */}
+                  <div className="pt-4"> {/* Padding top for spacing from button */}
+                    <p className="text-base text-gray-700 leading-relaxed indent-8">
+                      ยินดีต้อนรับสู่ EduLog ("การบันทึก" (Log) ด้าน "การศึกษา" (Edu) อย่างเป็นระบบ) แพลตฟอร์มที่ถูกสร้างขึ้นด้วยจุดมุ่งหมายในการเป็นศูนย์กลางรวบรวมข้อมูลการปฏิบัติงานทางการศึกษาอย่างเป็นระบบ จากเรื่องราว กิจกรรม โครงการ การอบรม ตลอดจนผลงานอันน่าภาคภูมิใจของครูและนักเรียน ได้ถูกจัดเก็บและนำเสนอไว้ในที่เดียว
+                    </p>
+                    <p className="mt-4 text-base text-gray-700 leading-relaxed indent-8">
+                      EduLog ทำหน้าที่เป็น 'บันทึกดิจิทัล' (Digital Log) ที่สะท้อนภาพการทำงาน พัฒนาการ และองค์ความรู้ที่เกิดขึ้น เพื่อเป็นหลักฐานเชิงประจักษ์สำหรับการประเมินผล และเป็นคลังแห่งแรงบันดาลใจสำหรับการพัฒนาวิชาชีพในอนาคต ขอเชิญบุคลากรทางการศึกษา และผู้สนใจทุกท่าน ร่วมสำรวจผลสัมฤทธิ์และเส้นทางการเรียนรู้ของเราได้ ณ ที่นี้
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            {/* --- END EDIT --- */}
+            
+          </div>
+          
+          {/* --- START EDIT: Add Dashboard Section --- */}
+          {!isLoading && !error && recentActivities.length > 0 && (
+            <RecentActivityDashboard items={recentActivities} modal={modal} />
+          )}
+          {/* --- END EDIT --- */}
+
+          {/* Public Data Table */}
+          {isLoading ? (
+            <div className="text-center py-10 text-[#6C757D]">กำลังโหลดข้อมูล...</div>
+          ) : error ? (
+            <div className="text-center py-10 text-red-500">{error}</div>
+          ) : (
+            <DataTable
+              data={data}
+              onEdit={() => {}} // No edit on public page
+              onDelete={() => {}} // No delete on public page
+              modal={modal}
+              isPublic={true} // <-- ADDED: This hides admin buttons
+            />
+          )}
+        </>
+        // --- END EDIT: Redesigned HomePage Header ---
+      );
+    };
+
+
+    /**
+     * Main App Component
+     */
+    // ---!!!---
+    // ลบ 'export default' ออก
+    function App() {
+    // ---!!!---
+      const [page, setPage] = useState('home'); // 'home', 'login', 'admin'
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+      const handleNavigation = (targetPage) => {
+        if (targetPage === 'home') {
+          setIsAuthenticated(false);
+          setPage('home');
+        } else if (targetPage === 'login') {
+          setPage('login');
+        }
+      };
+
+      const handleLoginSuccess = () => {
+        setIsAuthenticated(true);
+        setPage('admin');
+      };
+      
+      let content;
+      if (page === 'admin' && isAuthenticated) {
+        content = <AdminPage />;
+      } else if (page === 'login') {
+        content = <LoginPage onLoginSuccess={handleLoginSuccess} />;
+      } else {
+        content = <HomePage />;
+      }
+
+      return (
+        <ModalProvider> {/* Wrap the entire app in ModalProvider */}
+          <div className="min-h-screen bg-[#F8F9FA] font-['Noto_Sans_Thai_Looped',_sans-serif]">
+            <Header page={page} onNav={handleNavigation} />
+            <main className="container mx-auto px-4 py-6">
+              {content}
+            </main>
+            <Footer />
+          </div>
+        </ModalProvider>
+      );
+    }
+    
+    // --- End: โค้ดจาก app.jsx ---
+
+
+    // --- 8. (สำคัญ) โค้ดสำหรับ Render React App ---
+    
+    // หา <div id="root">
+    const container = document.getElementById('root');
+    
+    // สร้าง React root
+    const root = ReactDOM.createRoot(container);
+    
+    // Render Component <App />
+    root.render(<App />);
+    
+  </script>
+  <!-- End React App Script -->
+  
+</body>
+</html>
+
+
+
+
+
+
